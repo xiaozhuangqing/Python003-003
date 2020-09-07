@@ -37,38 +37,31 @@ class DiningPhilosophers(threading.Thread):
     def run(self):
         while self.eat_num > 0:
             #竞争左边叉子
-            # 拿左边叉子之前，判断当前有几把左侧叉子拿起，不能大于4把，否则会引起死锁
-            if num_locked.qsize() > 4:
-                continue
-            self.pickLeftFork()
-
-            # 竞争右边的叉子
-            self.pickRightFork()
-
-            # 吃饭
-            self.eat()
-
-            # 放下左叉
-            self.putLeftFork()
-            # con.release()
-
-            # 放下右叉子
-            self.putRightFork()
-            
-            # 完成一次吃饭
-            self.eat_num-=1
+            if self.left_fork.acquire(timeout=0.1):
+                # continue
+                self.pickLeftFork()
+                # 竞争右边的叉子
+                if self.right_fork.acquire(timeout=0.1):
+                    self.pickRightFork()
+                    # 吃饭
+                    self.eat()
+                    # 完成一次吃饭
+                    self.eat_num-=1
+                    # 放下左叉
+                    self.putLeftFork()
+                    # 放下右叉子
+                    self.putRightFork()
+                else:
+                    self.left_fork.release()
+                    # continue
 
     # 拿起左边的叉子
     def pickLeftFork(self):
-        # 左侧叉子被拿起，入队一次
-        num_locked.put(1) 
-        self.left_fork.acquire(1)
         print(f'{self.philosopher} 拿起左叉 ')
         results.put([self.philosopher, 1,1])
 
     # 拿起右边的叉子
     def pickRightFork(self):
-        self.right_fork.acquire(1)
         print(f'{self.philosopher} 拿起左叉 ')
         results.put([self.philosopher, 2,1])
 
@@ -82,13 +75,11 @@ class DiningPhilosophers(threading.Thread):
         print(f'{self.philosopher} 放下左边的叉子 ')
         results.put([self.philosopher,2,2])
         self.left_fork.release()
-        # 左侧叉子被放下，出队一次
-        num_locked.get()
 
     # 放下右边的叉子
     def putRightFork(self):
         print(f'{self.philosopher} 放下右边的叉子 ')
-        results.put(self.philosopher, 2,2)
+        results.put([self.philosopher, 2,2])
         self.right_fork.release()
 
 
